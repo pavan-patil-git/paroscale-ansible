@@ -1,0 +1,51 @@
+---
+  hosts: all
+  become: true
+  tasks:
+    - name: Install NFS Server on node1
+      apt:
+        name: nfs-kernel-server
+        state: present
+      when: inventory_hostname == "node1"
+
+    - name: Create NFS shared directory
+      file:
+        path: /srv/nfs_shared_drive
+        state: directory
+        owner: nobody
+        group: nogroup
+        mode: '0777'
+      when: inventory_hostname == "node1"
+
+    - name: Configure NFS exports
+      lineinfile:
+        path: /etc/exports
+        line: "/srv/nfs_shared_drive 192.168.56.102(rw,sync,no_root_squash,no_subtree_check)"
+      when: inventory_hostname == "node1"
+
+    - name: Restart NFS server
+      systemd:
+        name: nfs-kernel-server
+        state: restarted
+      when: inventory_hostname == "node1"
+
+    - name: Install NFS Client on node2
+      apt:
+        name: nfs-common
+        state: present
+      when: inventory_hostname == "node2"
+
+    - name: Create mount point on node2
+      file:
+        path: /mnt/nfs_shared_drive
+        state: directory
+      when: inventory_hostname == "node2"
+
+    - name: Mount NFS share on node2
+      mount:
+        path: /mnt/nfs_shared_drive
+        src: "192.168.56.101:/srv/nfs_shared_drive"
+        fstype: nfs
+        opts: defaults
+        state: mounted
+      when: inventory_hostname == "node2"
